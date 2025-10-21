@@ -19,7 +19,7 @@ def crack_md5_dictionnaire(hash_a_cracker, fichier_dictionnaire):
                     return mot # Trouvé !
                     
     except FileNotFoundError:
-        print(f"[ERREUR] Le fichier dictionnaire '{fichier_dictionnaire}' n'a pas été trouvé.")
+        print(f"[ERREUR ] Le fichier dictionnaire '{fichier_dictionnaire}' n'a pas été trouvé.")
         return None
     except Exception as e:
         print(f"[ERREUR] Une erreur est survenue : {e}")

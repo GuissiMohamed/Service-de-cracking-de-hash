@@ -1,54 +1,111 @@
-import hashlib
-import time
+# app.py
+from flask import Flask, request, jsonify, send_from_directory
+import hashlib, time
+from pathlib import Path
 
-def crack_md5_dictionnaire(hash_a_cracker, fichier_dictionnaire):
-    """
-    Tente de cracker un hash MD5 en utilisant une attaque par dictionnaire.
-    """
+app = Flask(__name__, static_folder="static", static_url_path="/static")
+
+# -----------------------
+# utilitaires hash simples
+# -----------------------
+def hash_of(text: str, algo: str) -> str:
+    algo = (algo or "md5").lower()
     try:
-        # Ouvre le fichier dictionnaire en mode lecture
-        with open(fichier_dictionnaire, 'r') as f:
-            for ligne in f:
-                mot = ligne.strip() # Enlève les espaces et sauts de ligne
-                
-                # Calcule le hash MD5 du mot
-                hash_calcule = hashlib.md5(mot.encode()).hexdigest()
-                
-                # Compare le hash calculé au hash cible
-                if hash_calcule == hash_a_cracker:
-                    return mot # Trouvé !
-                    
-    except FileNotFoundError:
-        print(f"[ERREUR] Le fichier dictionnaire '{fichier_dictionnaire}' n'a pas été trouvé.")
-        return None
+        h = hashlib.new(algo)
+    except Exception:
+        # fallback simple
+        if algo == "sha256":
+            h = hashlib.sha256()
+        elif algo == "sha1":
+            h = hashlib.sha1()
+        else:
+            h = hashlib.md5()
+    h.update(text.encode("utf-8"))
+    return h.hexdigest()
+
+def is_valid_hash(hs: str, algo: str) -> bool:
+    if not hs:
+        return False
+    hs = hs.lower()
+    if algo:
+        algo = algo.lower()
+        if algo == "md5":
+            return len(hs) == 32
+        if algo == "sha1":
+            return len(hs) == 40
+        if algo == "sha256":
+            return len(hs) == 64
+    # fallback: check hex-ish length
+    return all(c in "0123456789abcdef" for c in hs)
+
+# -----------------------
+# page d'accueil (statique)
+# -----------------------
+@app.route("/", methods=["GET"])
+def index():
+    # sert static/index.html si présent
+    idx = Path("static/index.html")
+    if idx.exists():
+        return send_from_directory("static", "index.html")
+    return "<h1>Service de cracking — API</h1><p>Use POST /api/v1/crack</p>"
+
+# favicon (évite 404 dans logs du navigateur)
+@app.route("/favicon.ico")
+def favicon():
+    f = Path("static/favicon.ico")
+    if f.exists():
+        return send_from_directory("static", "favicon.ico")
+    return "", 204
+
+# -----------------------
+# Endpoint de cracking (sync / demo)
+# -----------------------
+@app.route("/api/v1/crack", methods=["POST"])
+def crack():
+    payload = request.get_json(silent=True) or {}
+    target = (payload.get("hash") or "").strip().lower()
+    algo = payload.get("algo")
+    method = payload.get("method", "dictionary")
+    wordlist = payload.get("wordlist", "dico.txt")
+
+    if not target:
+        return jsonify({"ok": False, "error": "missing hash"}), 400
+
+    start = time.time()
+    wl_path = Path(wordlist)
+    if not wl_path.exists():
+        return jsonify({"ok": False, "error": f"wordlist not found: {wordlist}"}), 400
+
+    try:
+        with wl_path.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                cand = line.strip()
+                if not cand:
+                    continue
+                if algo:
+                    cand_hash = hash_of(cand, algo)
+                    if cand_hash.lower() == target:
+                        return jsonify({"ok": True, "method": "dictionary", "found": True, "plaintext": cand, "time": time.time()-start}), 200
+                else:
+                    # heuristique par longueur
+                    if len(target) == 32:
+                        try_algo = "md5"
+                    elif len(target) == 40:
+                        try_algo = "sha1"
+                    elif len(target) == 64:
+                        try_algo = "sha256"
+                    else:
+                        try_algo = "md5"
+                    if hash_of(cand, try_algo).lower() == target:
+                        return jsonify({"ok": True, "method": "dictionary", "found": True, "plaintext": cand, "algo": try_algo, "time": time.time()-start}), 200
+
+        return jsonify({"ok": True, "method": "dictionary", "found": False, "plaintext": None, "time": time.time()-start}), 200
     except Exception as e:
-        print(f"[ERREUR] Une erreur est survenue : {e}")
-        return None
-        
-    return None # Non trouvé
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-# --- Point d'entrée principal du script ---
+# -----------------------
+# démarrage
+# -----------------------
 if __name__ == "__main__":
-    
-    # Hash MD5 pour "123456"
-    HASH_CIBLE = "e10adc3949ba59abbe56e057f20f883e" 
-    NOM_DU_DICTIONNAIRE = "dico.txt" 
-    
-    print(f"--- Service de Crack MD5 (v1.0 Console) ---")
-    print(f"Hash cible : {HASH_CIBLE}")
-    print(f"Dictionnaire : {NOM_DU_DICTIONNAIRE}")
-    print("---------------------------------------------")
-    print("Démarrage du crack...")
+    app.run(host="127.0.0.1", port=5000, debug=True)
 
-    start_time = time.time() # Démarre le chronomètre
-    resultat = crack_md5_dictionnaire(HASH_CIBLE, NOM_DU_DICTIONNAIRE)
-    end_time = time.time() # Arrête le chronomètre
-    duree = end_time - start_time
-
-    print("---------------------------------------------")
-    if resultat:
-        print(f"✅ TROUVÉ ! \nMot de passe : {resultat}")
-    else:
-        print(f"❌ NON TROUVÉ.")
-    
-    print(f"Durée de l'opération : {duree:.4f} secondes.")

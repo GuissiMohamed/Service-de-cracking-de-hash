@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <title>Hash Cracker — Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 32px; }
+    pre { background:#f6f8fa; padding:12px; border-radius:6px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Service de cracking — Demo</h1>
+  <p>Utilise l'API <code>POST /api/v1/crack</code> pour soumettre un hash (mode sync pour tests rapides).</p>
+
+  <h2>Exemple (curl)</h2>
+  <pre>
+curl -s -X POST http://127.0.0.1:5000/api/v1/crack \
+  -H "Content-Type: application/json" \
+  -d '{"hash":"5f4dcc3b5aa765d61d8327deb882cf99","algo":"md5","mode":"sync","wordlist":"dico.txt"}'
+  </pre>
+
+  <p>Fichier wordlist par défaut utilisé : <code>dico.txt</code></p>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Service de Cracking de Hash</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 40px; }
+    h1 { color: #333; }
+    form { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 400px; }
+    input, select, button { width: 100%; margin-bottom: 10px; padding: 8px; font-size: 16px; }
+    pre { background: #e9ecef; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Service de Cracking de Hash</h1>
+  <form id="form">
+    <label>Hash :</label>
+    <input type="text" id="hash" required>
+
+    <label>Algorithme :</label>
+    <select id="algo">
+      <option value="">(Auto)</option>
+      <option value="md5">MD5</option>
+      <option value="sha1">SHA1</option>
+      <option value="sha256">SHA256</option>
+    </select>
+
+    <button type="submit">🔍 Cracker</button>
+  </form>
+
+  <h2>Résultat :</h2>
+  <pre id="result"></pre>
+
+  <script>
+  const form = document.getElementById('form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const hash = document.getElementById('hash').value;
+    const algo = document.getElementById('algo').value;
+    const res = await fetch('/api/v1/crack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hash, algo, mode: 'sync', wordlist: 'dico.txt' })
+    });
+    const data = await res.json();
+    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+  });
+  </script>
+</body>
+</html>

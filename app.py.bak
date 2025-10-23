@@ -1,15 +1,19 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+# app.py
+from flask import Flask, request, jsonify, send_from_directory
 import hashlib, time
 from pathlib import Path
 
-app = Flask(__name__, static_folder="static", template_folder="templates")
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 
-# utilitaires
+# -----------------------
+# utilitaires hash simples
+# -----------------------
 def hash_of(text: str, algo: str) -> str:
     algo = (algo or "md5").lower()
     try:
         h = hashlib.new(algo)
     except Exception:
+        # fallback simple
         if algo == "sha256":
             h = hashlib.sha256()
         elif algo == "sha1":
@@ -25,30 +29,48 @@ def is_valid_hash(hs: str, algo: str) -> bool:
     hs = hs.lower()
     if algo:
         algo = algo.lower()
-        if algo == "md5": return len(hs) == 32
-        if algo == "sha1": return len(hs) == 40
-        if algo == "sha256": return len(hs) == 64
+        if algo == "md5":
+            return len(hs) == 32
+        if algo == "sha1":
+            return len(hs) == 40
+        if algo == "sha256":
+            return len(hs) == 64
+    # fallback: check hex-ish length
     return all(c in "0123456789abcdef" for c in hs)
 
-# Page d'accueil
+# -----------------------
+# page d'accueil (statique)
+# -----------------------
 @app.route("/", methods=["GET"])
-def home():
-    return render_template("index.html")
+def index():
+    # sert static/index.html si présent
+    idx = Path("static/index.html")
+    if idx.exists():
+        return send_from_directory("static", "index.html")
+    return "<h1>Service de cracking — API</h1><p>Use POST /api/v1/crack</p>"
 
-# API sync pour cracking (utilise un fichier wordlist en param)
+# favicon (évite 404 dans logs du navigateur)
+@app.route("/favicon.ico")
+def favicon():
+    f = Path("static/favicon.ico")
+    if f.exists():
+        return send_from_directory("static", "favicon.ico")
+    return "", 204
+
+# -----------------------
+# Endpoint de cracking (sync / demo)
+# -----------------------
 @app.route("/api/v1/crack", methods=["POST"])
 def crack():
     payload = request.get_json(silent=True) or {}
     target = (payload.get("hash") or "").strip().lower()
     algo = payload.get("algo")
-    mode = payload.get("mode", "sync")
     method = payload.get("method", "dictionary")
     wordlist = payload.get("wordlist", "dico.txt")
 
     if not target:
         return jsonify({"ok": False, "error": "missing hash"}), 400
 
-    # mode sync seulement ici
     start = time.time()
     wl_path = Path(wordlist)
     if not wl_path.exists():
@@ -60,9 +82,9 @@ def crack():
                 cand = line.strip()
                 if not cand:
                     continue
-                # si algo fourni, test direct
                 if algo:
-                    if hash_of(cand, algo).lower() == target:
+                    cand_hash = hash_of(cand, algo)
+                    if cand_hash.lower() == target:
                         return jsonify({"ok": True, "method": "dictionary", "found": True, "plaintext": cand, "time": time.time()-start}), 200
                 else:
                     # heuristique par longueur
@@ -81,13 +103,9 @@ def crack():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# favicon route (évite 404 dans logs)
-@app.route("/favicon.ico")
-def favicon():
-    f = Path("static/favicon.ico")
-    if f.exists():
-        return send_from_directory("static", "favicon.ico")
-    return "", 204
-
+# -----------------------
+# démarrage
+# -----------------------
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
+

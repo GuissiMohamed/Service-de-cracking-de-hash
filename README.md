@@ -1,31 +1,41 @@
-# Projet : Service de Cracking de Hash (SCH)
+# Hash Cracker — Service de cracking de hash (TP)
 
-Projet réalisé dans le cadre du TP "Processus du développement logiciel".
+**Résumé**  
+Service web pédagogique permettant de tenter de retrouver un mot de passe à partir de son hash (MD5 / SHA1 / SHA256...). Le service accepte des requêtes via une API REST, peut fonctionner en mode synchrone (réponse immédiate pour petites tâches) ou asynchrone (jobs en file d’attente pour attaques longues). Conçu pour un contexte de TP : démonstration, tests et apprentissage.
 
-## 1. Objectif
+---
 
-L'objectif est de créer un service web capable de retrouver un mot de passe en clair à partir de son hash, en utilisant différentes méthodes d'attaque (dictionnaire, force brute).
+## Stack technique
+- Langage : **Python 3.10+**
+- API Web : **Flask**
+- Tâches asynchrones : **Celery + Redis**
+- Base de données : **SQLite** (dev) / PostgreSQL (prod)
+- Gestion de version : **Git / GitHub**
+- Front simple : **HTML / CSS / JS**
+- Tests : **pytest**
 
-## 2. Équipe
+---
 
-* Aya El Hazime - Membre de l'équipe de développement
-* Malika Ghilas - Membre de l'équipe de développement
-* Souhila Kebdani - Membre de l'équipe de développement
-* Mohamed Guissi - Membre de l'équipe de développement
-* Salas Daniel - Product Owner
+## Fonctionnalités principales
+- Endpoint `POST /api/v1/crack` (mode `sync` ou `async`)
+- Endpoint `GET /api/v1/jobs/<job_id>` pour récupérer le statut/résultat d’un job
+- Mode auto-détection d’algorithme (quand l’algorithme n’est pas fourni)
+- Strategies : dictionnaire (wordlist) et brute-force (limité)
+- Gestion des quotas / rate-limiting (prévu via Flask-Limiter + Redis)
+- Authentification par **API key** (recommandée pour les robots / batchs)
+- Observabilité minimale (logs + endpoint `/api/v1/health`)
 
-## 3. Stack Technique (Les Outils)
+---
 
-* **Langage :** Python (v3.10+)
-* **API (Web Service) :** Flask
-* **Gestion de version :** Git & GitHub
-* **Gestion de projet (Scrum) :** GitHub Projects // Possibilité de tester Trello ou Jira 
-* **Front-end :** HTML / CSS / JavaScript // Possibilité de travailler avec un Framework
-  
-## 4. Comment lancer le projet
+## Architecture (haut niveau)
+Clients → Flask API → (si async) Queue Redis/Celery → Workers (exécutent strategies) → DB (jobs/results)
 
-1.  Clonez le dépôt : `git clone ...`
-2.  Créez un environnement virtuel : `python -m venv venv`
-3.  Activez-le : `source venv/bin/activate` (ou `.\venv\Scripts\activate` sur Windows)
-4.  Installez les dépendances : `pip install -r requirements.txt`
-5.  Lancez le service : `flask run`
+---
+
+## Installation rapide (dev)
+> Pré-requis : Python 3.10+, Docker (optionnel), Redis (local ou Docker)
+
+1. Clone le repo :
+```bash
+git clone <repo-url>
+cd hash_cracker
